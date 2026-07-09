@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Супер Кликер V2</title>
+    <style>
+        body { font-family: sans-serif; background: linear-gradient(135deg, #1e1e2f, #2d2d44); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; min-height: 100vh; margin: 0; user-select: none; overflow: hidden; position: relative; width: 100vw; box-sizing: border-box; padding-top: 80px; }
+        .menu-toggle { position: absolute; top: 15px; left: 15px; background: #3a3a55; border: 1px solid #555; color: #fff; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; z-index: 100; transition: 0.2s; }
+        
+        /* ИСПРАВИЛИ СКРОЛЛ: Меню теперь можно крутить вниз на любом телефоне! */
+        .sidebar { position: fixed; top: 0; left: -290px; width: 250px; height: 100%; background: rgba(20, 20, 35, 0.95); box-shadow: 5px 0 25px rgba(0,0,0,0.7); backdrop-filter: blur(15px); z-index: 99; padding: 70px 20px 40px 20px; display: flex; flex-direction: column; gap: 15px; transition: left 0.3s cubic-bezier(0.25, 1, 0.5, 1); overflow-y: scroll; -webkit-overflow-scrolling: touch; box-sizing: border-box; }
+        .sidebar.open { left: 0; }
+        
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); z-index: 98; display: none; }
+        .game-screen { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; width: 100%; margin-top: 10px; }
+        h1 { margin: 0 0 5px 0; font-size: 26px; color: #4facfe; text-shadow: 0 2px 10px rgba(79, 172, 254, 0.3); }
+        .score-box { font-size: 44px; font-weight: bold; margin: 10px 0 25px 0; color: #00f2fe; text-shadow: 0 0 12px rgba(0, 242, 254, 0.6); }
+        .click-btn { width: 160px; height: 160px; border-radius: 50%; border: none; background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%); box-shadow: 0 8px 25px rgba(0, 242, 254, 0.4); cursor: pointer; font-size: 60px; transition: transform 0.1s; outline: none; }
+        .click-btn:active, .click-btn.bot-active { transform: scale(0.92); }
+        
+        .menu-section { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+        .menu-section h3 { margin: 0 0 3px 0; font-size: 13px; color: #ffb300; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; }
+        .upgrade-btn { background: #2d2d44; color: #fff; border: 1px solid #555; padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 11px; text-align: left; line-height: 1.4; }
+        .upgrade-btn:disabled { background: #151522; color: #555; cursor: not-allowed; border-color: #222; }
+        .upgrade-btn.active-buff { background: linear-gradient(135deg, #00600f, #1b5e20); border-color: #00ffcc; box-shadow: 0 0 10px rgba(0, 255, 204, 0.3); }
+        .music-btn { background: linear-gradient(135deg, #4facfe, #00f2fe); color: #000; font-weight: bold; border: none; padding: 10px; border-radius: 10px; cursor: pointer; font-size: 12px; text-align: center; }
+        
+        .docs-content { display: none; background: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 8px; font-size: 11px; line-height: 1.4; color: #ccc; flex-direction: column; gap: 6px; }
+        .docs-content strong { color: #00f2fe; }
+        .docs-content.open-docs { display: flex; }
+
+        .debt-box { background: rgba(211, 47, 47, 0.1); border: 1px solid rgba(211, 47, 47, 0.3); border-radius: 10px; padding: 8px; font-size: 11px; display: flex; flex-direction: column; gap: 5px; }
+        .debt-box strong { color: #ff5252; font-size: 13px; }
+        .debt-btn-get, .debt-btn-pay { color: white; border: none; padding: 6px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 11px; }
+        .debt-btn-get { background: #c62828; } .debt-btn-pay { background: #2e7d32; }
+        .debt-btn-get:disabled, .debt-btn-pay:disabled { background: #444; color: #777; cursor: not-allowed; }
+        .badge { padding: 6px; border-radius: 8px; background: #222; color: #666; font-size: 11px; font-weight: bold; text-align: center; }
+        .badge.unlocked { background: linear-gradient(135deg, #ffcc00, #ff9900); color: #000; box-shadow: 0 0 10px rgba(255, 204, 0, 0.5); }
+        #cheatOverlay { position: fixed; top:0; left:0; width:100vw; height:100vh; background: rgba(139, 0, 0, 0.95); color: #fff; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; text-align: center; }
+        .app-version { position: absolute; bottom: 15px; color: rgba(255, 255, 255, 0.3); font-size: 13px; font-weight: bold; letter-spacing: 1px; z-index: 10; }
+        #botCircle { position: absolute; width: 20px; height: 20px; background: #ff0055; border-radius: 50%; box-shadow: 0 0 12px #ff007f; z-index: 5; display: none; }
+        #botCircle.boosted { background: #00ffcc; box-shadow: 0 0 15px #00ffcc, 0 0 25px #00ffcc; }
+        .turret-zone { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: rgba(0, 242, 254, 0.03); border: 1px dashed rgba(0, 242, 254, 0.2); display: none; align-items: center; justify-content: center; pointer-events: none; z-index: 4; box-sizing: border-box; }
+        .turret-zone.active { background: rgba(0, 255, 204, 0.08); border-color: rgba(0, 255, 204, 0.5); }
+        .turret-core { width: 32px; height: 32px; background: radial-gradient(circle, #3a3a55, #151522); border: 2px solid #00f2fe; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 0 10px rgba(0, 242, 254, 0.5); transition: transform 0.1s; }
+        .turret-zone.active .turret-core { border-color: #00ffcc; box-shadow: 0 0 15px #00ffcc; animation: turretShake 0.15s infinite alternate; }
+        .station-building { position: absolute; width: 36px; height: 36px; background: #ffb300; border: 2px solid #fff; border-radius: 6px; display: none; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 0 15px #ffb300; z-index: 4; }
+        .drone-triangle { position: absolute; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid #ffea00; filter: drop-shadow(0 0 5px #ffea00); z-index: 6; pointer-events: none; transition: all 0.6s linear; }
+        .laser-beam { position: absolute; background: #00ffcc; box-shadow: 0 0 8px #00ffcc, 0 0 15px #00ffcc; height: 4px; border-radius: 2px; transform-origin: top left; z-index: 6; pointer-events: none; transition: opacity 0.15s ease-out; }
+        .laser-yellow { background: #ffea00; box-shadow: 0 0 8px #ffea00, 0 0 15px #ffea00; }
+        .event-popup { position: fixed; top: -150px; left: 50%; transform: translateX(-50%); width: 80%; max-width: 320px; padding: 15px; border-radius: 12px; text-align: center; font-weight: bold; z-index: 500; font-size: 14px; box-shadow: 0 8px 25px rgba(0,0,0,0.5); transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .event-popup.show { top: 25px; }
+        .event-crisis { background: linear-gradient(135deg, #d32f2f, #9a0007); border: 2px solid #ff6659; }
+        .event-holiday { background: linear-gradient(135deg, #388e3c, #00600f); border: 2px solid #6ab7ff; color: #fff; box-shadow: 0 0 20px rgba(56, 142, 60, 0.6); }
+        .event-mayor { background: linear-gradient(135deg, #212121, #000000); border: 2px solid #ff1744; animation: flashBorder 0.5s infinite alternate; }
+        @keyframes turretShake { from { transform: scale(1); } to { transform: scale(1.1); } }
+    </style>
+</head>
+<body>
+<div id="cheatOverlay">
+    <h2>🚨 ОБНАРУЖЕН ВЗЛОМ! 🚨</h2>
+    <p>Скорость кликов превысила лимит.<br>Прогресс полностью обнулен.</p>
+</div>
+
+<div class="event-popup" id="eventPopup"></div>
+
+<audio id="bgMusic" src="https://archive.org" loop></audio>
+<audio id="clickSound" src="https://archive.org"></audio>
+
+<button class="menu-toggle" id="menuToggle">☰  Меню</button>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="sidebar" id="sidebar">
+    <div class="menu-section">
+        <h3>🎵 Звук</h3>
+        <button class="music-btn" id="musicToggleBtn">🔇 Музыка: ВЫКЛ</button>
+    </div>
+
+    <div class="menu-section">
+        <h3 id="docsHeader">📖 Справка и доки (Нажми)</h3>
+        <div class="docs-content" id="docsContent">
+            <span>🤖 <strong>Летающий Бот:</strong> Раз в 30 секунд автоматически совершает клик по алмазу с вашей текущей силой удара.</span>
+            <span>🛰️ <strong>Турель Энергии:</strong> Пассивная вышка. Когда бот влетает в её зону, она бьет лазером и разгоняет его, снижая задержку атак с 30 до 20 сек.</span>
+            <span>📐 <strong>Станция Дронов:</strong> Раз в минуту выпускает 5 треугольников. Каждый наводится на бота и дает мощный разряд, срезая по 3 сек за штуку (в сумме -15 сек КД).</span>
+            <span>🛑 <strong>Подкуп мэра:</strong> На 1 час полностью убирает риск появления злого мэра (шанс падает до 0%).</span>
+            <span>🔥 <strong>Буст прибыли:</strong> На 10 минут дает множитель +10% ко всем вашим кликам и кликам бота.</span>
+            <span>🏦 <strong>Система долгов:</strong> Кредит дает +10 000 очков, но каждые 10 минут банк списывает по 500 очков налога. Кредитные деньги не засчитываются в ачивку Богач!</span>
+        </div>
+    </div>
+
+    <div class="menu-section">
+        <h3>🛒 Магазин прокачки</h3>
+        <button class="upgrade-btn" id="upgradeBtn">Улучшить клик (+5)<br>Цена: 50</button>
+        <button class="upgrade-btn" id="botBtn">Купить Летающего Бота<br>Цена: 300</button>
+        <button class="upgrade-btn" id="turretBtn">Купить Турель Энергии<br>Цена: 600</button>
+        <button class="upgrade-btn" id="stationBtn">Купить Станцию Дронов<br>Цена: 1 200</button>
+        <button class="upgrade-btn" id="bribeBtn">Подкуп мэра (Мэр 0% на 1ч)<br>Цена: 750</button>
+        <button class="upgrade-btn" id="boostBtn">Буст прибыли (+10% на 10м)<br>Цена: 5 000</button>
+        <div class="badge" id="richBadge">🔒 БОГАЧ (0 / 80,000)</div>
+    </div>
+
+    <div class="menu-section">
+        <h3>🏦 Финансовая система</h3>
+        <div class="debt-box">
+            <span>Текущий долг: <strong id="debtDisplay">0</strong> очков</span>
+            <button class="debt-btn-get" id="getLoanBtn">Взять долг (+10 000)</button>
+            <button class="debt-btn-pay" id="payLoanBtn">Погасить долг досрочно</button>
+        </div>
+    </div>
+</div>
+
+<div class="game-screen">
+    <h1>💸 СУПЕР КЛИКЕР 💸</h1>
+    <div class="score-box" id="scoreDisplay">0</div>
+    <button class="click-btn" id="clickBtn">💎</button>
+</div>
+
+<div id="botCircle"></div>
+<div class="turret-zone" id="turretZone">
+    <div class="turret-core">🛰️</div>
+</div>
+<div class="station-building" id="stationBuilding">📐</div>
+
+<div class="app-version">v 3.0</div>
+<script>
+    let score = parseInt(localStorage.getItem('c7_score')) || 0;
+    let clickPower = parseInt(localStorage.getItem('c7_power')) || 1;
+    let upgradeCost = parseInt(localStorage.getItem('c7_cost')) || 50;
+    let hasBot = localStorage.getItem('c7_hasbot') === 'true';
+    let hasTurret = localStorage.getItem('c7_hasturret') === 'true';
+    let hasStation = localStorage.getItem('c7_hasstation') === 'true';
+    let isRichUnlocked = localStorage.getItem('c7_ach_rich') === 'true';
+    
+    let bribeTimeLeft = parseInt(localStorage.getItem('c7_bribetime')) || 0;
+    let boostTimeLeft = parseInt(localStorage.getItem('c7_boosttime')) || 0;
+    let debtAmount = parseInt(localStorage.getItem('c7_debt')) || 0;
+    let borrowedScoreTotal = parseInt(localStorage.getItem('c7_borrowed_total')) || 0;
+    let isMusicPlaying = localStorage.getItem('c7_music') === 'true';
+    let clickCountInSecond = 0;
+
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const clickBtn = document.getElementById('clickBtn');
+    const upgradeBtn = document.getElementById('upgradeBtn');
+    const botBtn = document.getElementById('botBtn');
+    const turretBtn = document.getElementById('turretBtn');
+    const stationBtn = document.getElementById('stationBtn');
+    const bribeBtn = document.getElementById('bribeBtn');
+    const boostBtn = document.getElementById('boostBtn');
+    const debtDisplay = document.getElementById('debtDisplay');
+    const getLoanBtn = document.getElementById('getLoanBtn');
+    const payLoanBtn = document.getElementById('payLoanBtn');
+    const richBadge = document.getElementById('richBadge');
+    const botCircle = document.getElementById('botCircle');
+    const turretZone = document.getElementById('turretZone');
+    const stationBuilding = document.getElementById('stationBuilding');
+    const cheatOverlay = document.getElementById('cheatOverlay');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const eventPopup = document.getElementById('eventPopup');
+    const bgMusic = document.getElementById('bgMusic');
+    const clickSound = document.getElementById('clickSound');
+    const musicToggleBtn = document.getElementById('musicToggleBtn');
+    const docsHeader = document.getElementById('docsHeader');
+    const docsContent = document.getElementById('docsContent');
+
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        sidebarOverlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+    });
+    sidebarOverlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        sidebarOverlay.style.display = 'none';
+    });
+
+    docsHeader.addEventListener('click', () => {
+        docsContent.classList.toggle('open-docs');
+        if (docsContent.classList.contains('open-docs')) {
+            docsHeader.textContent = "📖 Справка и доки (Закрыть)";
+        } else {
+            docsHeader.textContent = "📖 Справка и доки (Нажми)";
+        }
+    });
+    setInterval(() => {
+        if (clickCountInSecond > 18) { localStorage.clear(); cheatOverlay.style.display = 'flex'; }
+        clickCountInSecond = 0;
+    }, 1000);
+
+    setInterval(() => {
+        if (bribeTimeLeft > 0) { bribeTimeLeft--; localStorage.setItem('c7_bribetime', bribeTimeLeft); }
+        if (boostTimeLeft > 0) { boostTimeLeft--; localStorage.setItem('c7_boosttime', boostTimeLeft); }
+        updateUI();
+    }, 1000);
+
+    setInterval(() => {
+        if (debtAmount > 0) {
+            let payment = Math.min(500, debtAmount, score);
+            score -= payment; debtAmount -= payment;
+            if (payment > 0) { triggerEventPopup(`🏦 Банк списал 500 очков в счет долга! Осталось вернуть: ${debtAmount}`, "event-crisis"); }
+            saveGameData(); updateUI();
+        }
+    }, 600000);
+
+    setInterval(() => {
+        let rand = Math.random() * 100;
+        if (rand <= 1) {
+            if (bribeTimeLeft > 0) return;
+            score = 0;
+            triggerEventPopup("🚨 Мэр города недоволен вами! Он ввел санкции и забрал ВСЕ ваши очки!", "event-mayor");
+        } else if (rand > 1 && rand <= 6) {
+            let loss = Math.floor(score * 0.3);
+            score = Math.max(0, score - loss);
+            triggerEventPopup(`📉 Экономический кризис! Вы потеряли 30% очков (-${loss.toLocaleString('ru-RU')})`, "event-crisis");
+        } else if (rand > 6 && rand <= 11) {
+            score += 3000;
+            triggerEventPopup("🎉 В городе праздник! Вам подарили +3 000 очков на халяву!", "event-holiday");
+        }
+        saveGameData(); updateUI();
+    }, 20000);
+
+    function triggerEventPopup(text, className) {
+        eventPopup.className = "event-popup " + className; eventPopup.textContent = text; eventPopup.classList.add('show');
+        setTimeout(() => { eventPopup.classList.remove('show'); }, 5000);
+    }
+
+    function formatTime(seconds) {
+        let m = Math.floor(seconds / 60); let s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function toggleMusic() {
+        if (isMusicPlaying) {
+            bgMusic.play().catch(e => console.log(e));
+            musicToggleBtn.innerHTML = "🔊 Музыка: ВКЛ";
+            musicToggleBtn.style.background = "linear-gradient(135deg, #28a745, #2ecc71)";
+        } else {
+            bgMusic.pause();
+            musicToggleBtn.innerHTML = "🔇 Музыка: ВЫКЛ";
+            musicToggleBtn.style.background = "linear-gradient(135deg, #4facfe, #00f2fe)";
+        }
+    }
+
+    musicToggleBtn.addEventListener('click', () => {
+        isMusicPlaying = !isMusicPlaying; localStorage.setItem('c7_music', isMusicPlaying); toggleMusic();
+    });
+
+    function playClickSound() {
+        clickSound.currentTime = 0; clickSound.play().catch(e => console.log(e));
+    }
+
+    function updateUI() {
+        scoreDisplay.textContent = score.toLocaleString('ru-RU');
+        upgradeBtn.innerHTML = `Улучшить клик (+5)<br>Цена: ${upgradeCost.toLocaleString('ru-RU')}`;
+        upgradeBtn.disabled = score < upgradeCost;
+
+        if (hasBot) {
+            botBtn.innerHTML = `Летающий Бот<br>КУПЛЕН (Клик каждые 30с)`; botBtn.disabled = true; botCircle.style.display = 'block';
+        } else {
+            botBtn.innerHTML = `Купить Летающего Бота<br>Цена: 300`; botBtn.disabled = score < 300;
+        }
+
+        if (hasTurret) {
+            turretBtn.innerHTML = `Турель Энергии<br>КУПЛЕНА (Расстреливает бота лазером)`; turretBtn.disabled = true; turretZone.style.display = 'flex';
+        } else {
+            turretBtn.innerHTML = `Купить Турель Энергии<br>Цена: 600`; turretBtn.disabled = score < 600;
+        }
+
+        if (hasStation) {
+            stationBtn.innerHTML = `Станция Дронов<br>КУПЛЕНА (Выпуск дронов раз в мин.)`; stationBtn.disabled = true; stationBuilding.style.display = 'flex';
+        } else {
+            stationBtn.innerHTML = `Купить Станцию Дронов<br>Цена: 1 200`; stationBtn.disabled = score < 1200;
+        }
+
+        if (bribeTimeLeft > 0) {
+            bribeBtn.innerHTML = `Мэр подкуплен! 🛑<br>Осталось: ${formatTime(bribeTimeLeft)}`; bribeBtn.disabled = true; bribeBtn.classList.add('active-buff');
+        } else {
+            bribeBtn.innerHTML = `Подкуп мэра (Мэр 0% на 1ч)<br>Цена: 750`; bribeBtn.disabled = score < 750; bribeBtn.classList.remove('active-buff');
+        }
+
+        if (boostTimeLeft > 0) {
+            boostBtn.innerHTML = `Буст прибыли активен! 🔥<br>Осталось: ${formatTime(boostTimeLeft)}`; boostBtn.disabled = true; boostBtn.classList.add('active-buff');
+        } else {
+            boostBtn.innerHTML = `Буст прибыли (+10% на 10м)<br>Цена: 5 000`; boostBtn.disabled = score < 5000; boostBtn.classList.remove('active-buff');
+        }
+
+        debtDisplay.textContent = debtAmount.toLocaleString('ru-RU');
+        getLoanBtn.disabled = debtAmount > 0; payLoanBtn.disabled = debtAmount === 0 || score === 0;
+
+        let realEarnedScore = score - borrowedScoreTotal;
+        if (realEarnedScore >= 80000 || isRichUnlocked) {
+            isRichUnlocked = true; localStorage.setItem('c7_ach_rich', 'true');
+            richBadge.textContent = "👑 БОГАЧ (Открыто!)"; richBadge.classList.add('unlocked');
+        } else {
+            let progress = Math.max(0, realEarnedScore);
+            richBadge.textContent = `🔒 БОГАЧ (${progress.toLocaleString('ru-RU')} / 80 000)`;
+        }
+    }
+    bribeBtn.addEventListener('click', () => {
+        if (score >= 750 && bribeTimeLeft <= 0) { score -= 750; bribeTimeLeft = 3600; saveGameData(); updateUI(); }
+    });
+
+    boostBtn.addEventListener('click', () => {
+        if (score >= 5000 && boostTimeLeft <= 0) { score -= 5000; boostTimeLeft = 600; saveGameData(); updateUI(); }
+    });
+
+    getLoanBtn.addEventListener('click', () => {
+        if (debtAmount === 0) {
+            score += 10000; debtAmount = 10000; borrowedScoreTotal += 10000; saveGameData(); updateUI();
+            triggerEventPopup("🏦 Банк одобрил кредит! +10 000 очков зачислено на счет.", "event-holiday");
+        }
+    });
+
+    payLoanBtn.addEventListener('click', () => {
+        if (debtAmount > 0 && score > 0) {
+            let payment = Math.min(debtAmount, score); score -= payment; debtAmount -= payment; saveGameData(); updateUI();
+            triggerEventPopup(`🏦 Вы выплатили часть долга: -${payment.toLocaleString('ru-RU')} очков`, "event-holiday");
+        }
+    });
+
+    clickBtn.addEventListener('click', () => {
+        clickCountInSecond++; playClickSound();
+        let currentPower = clickPower; if (boostTimeLeft > 0) { currentPower = Math.floor(clickPower * 1.1); }
+        score += currentPower; localStorage.setItem('c7_score', score); updateUI();
+    });
+
+    upgradeBtn.addEventListener('click', () => {
+        if (score >= upgradeCost) { score -= upgradeCost; clickPower += 5; upgradeCost = Math.floor(upgradeCost * 1.7); saveGameData(); updateUI(); }
+    });
+
+    botBtn.addEventListener('click', () => {
+        if (!hasBot && score >= 300) { score -= 300; hasBot = true; localStorage.setItem('c7_hasbot', 'true'); saveGameData(); updateUI(); startBotBehavior(); }
+    });
+
+    turretBtn.addEventListener('click', () => {
+        if (!hasTurret && score >= 600) { score -= 600; hasTurret = true; localStorage.setItem('c7_hasturret', 'true'); saveGameData(); spawnTurret(); updateUI(); }
+    });
+
+    stationBtn.addEventListener('click', () => {
+        if (!hasStation && score >= 1200) {
+            score -= 1200; hasStation = true; localStorage.setItem('c7_hasstation', 'true');
+            spawnStation(); updateUI(); startStationBehavior();
+        }
+    });
+
+    function saveGameData() {
+        localStorage.setItem('c7_score', score); localStorage.setItem('c7_power', clickPower); localStorage.setItem('c7_cost', upgradeCost); localStorage.setItem('c7_debt', debtAmount); localStorage.setItem('c7_borrowed_total', borrowedScoreTotal);
+    }
+
+    let turretX = 0, turretY = 0;
+    function spawnTurret() {
+        if (!hasTurret) return;
+        const maxSpawnX = window.innerWidth - 185;
+        const minY = 350; const maxY = window.innerHeight - 240;
+        turretX = Math.random() * (maxSpawnX - 10) + 10; turretY = Math.random() * (maxY - minY) + minY;
+        turretZone.style.left = turretX + 'px'; turretZone.style.top = turretY + 'px'; turretZone.style.display = 'flex';
+    }
+
+    let stationX = 0, stationY = 0;
+    function spawnStation() {
+        if (!hasStation) return;
+        const maxSpawnX = window.innerWidth - 60;
+        const minY = 350; const maxY = window.innerHeight - 240;
+        stationX = Math.random() * (maxSpawnX - 10) + 10; stationY = Math.random() * (maxY - minY) + minY;
+        stationBuilding.style.left = stationX + 'px'; stationBuilding.style.top = stationY + 'px'; stationBuilding.style.display = 'flex';
+    }
+
+    let botX = 50, botY = 50, dx = 2, dy = 2, isBotAttacking = false;
+    let isInsideTurret = false; let lastShotTime = 0; let timeToAttack = 30000;
+
+    // Функция отрисовки лазерных выстрелов
+    function shootLaser(x1, y1, x2, y2, isYellow = false) {
+        const laser = document.createElement('div');
+        laser.className = 'laser-beam' + (isYellow ? ' laser-yellow' : '');
+        const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+        laser.style.width = length + 'px'; laser.style.left = x1 + 'px'; laser.style.top = y1 + 'px';
+        laser.style.transform = `rotate(${angle}deg)`; document.body.appendChild(laser);
+        setTimeout(() => { laser.style.opacity = '0'; setTimeout(() => laser.remove(), 150); }, 50);
+    }
+
+    function startStationBehavior() {
+        if (!hasStation || !hasBot) return;
+        setInterval(() => {
+            if (isBotAttacking) return;
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    if (isBotAttacking) return;
+                    const drone = document.createElement('div'); drone.className = 'drone-triangle';
+                    let currentDx = stationX + 10; let currentDy = stationY + 10;
+                    drone.style.left = currentDx + 'px'; drone.style.top = currentDy + 'px'; document.body.appendChild(drone);
+                    setTimeout(() => {
+                        let targetBx = botX + 10; let targetBy = botY + 10;
+                        drone.style.left = (targetBx - 8) + 'px'; drone.style.top = (targetBy - 7) + 'px';
+                        setTimeout(() => {
+                            shootLaser(targetBx, targetBy, botX + 10, botY + 10, true);
+                            if (timeToAttack > 500) { timeToAttack = Math.max(100, timeToAttack - 3000); }
+                            drone.remove();
+                        }, 600);
+                    }, 50);
+                }, i * 300);
+            }
+        }, 60000);
+    }
+
+    setInterval(() => {
+        if (isBotAttacking) return;
+        if (hasBot && timeToAttack > 0) timeToAttack -= 16;
+        if (botX <= 0 || botX >= window.innerWidth - 20) dx = -dx;
+        if (botY <= 0 || botY >= window.innerHeight - 20) dy = -dy;
+        botX += dx; botY += dy; botCircle.style.left = botX + 'px'; botCircle.style.top = botY + 'px';
+
+        if (hasTurret && hasBot) {
+            let tCenterX = turretX + 90; let tCenterY = turretY + 90; let bCenterX = botX + 10; let bCenterY = botY + 10;
+            let distance = Math.sqrt(Math.pow(tCenterX - bCenterX, 2) + Math.pow(tCenterY - bCenterY, 2));
+            if (distance <= 90) {
+                isInsideTurret = true; botCircle.classList.add('boosted'); turretZone.classList.add('active');
+                let now = Date.now();
+                if (now - lastShotTime > 1500) {
+                    lastShotTime = now; shootLaser(tCenterX, tCenterY, bCenterX, bCenterY);
+                    if (timeToAttack > 1000) timeToAttack = Math.max(100, timeToAttack - 10000);
+                }
+            } else { isInsideTurret = false; botCircle.classList.remove('boosted'); turretZone.classList.remove('active'); }
+        }
+    }, 16);
+
+    function startBotBehavior() {
+        if (!hasBot) return;
+        function checkBotTimer() {
+            if (timeToAttack <= 0 && !isBotAttacking) {
+                isBotAttacking = true;
+                const btnRect = clickBtn.getBoundingClientRect();
+                const targetX = btnRect.left + btnRect.width / 2 - 10; const targetY = btnRect.top + btnRect.height / 2 - 10;
+                botCircle.style.transition = "all 0.8s ease"; botCircle.style.left = targetX + 'px'; botCircle.style.top = targetY + 'px';
+                setTimeout(() => {
+                    clickBtn.classList.add('bot-active'); playClickSound();
+                    let currentPower = clickPower; if (boostTimeLeft > 0) currentPower = Math.floor(clickPower * 1.1);
+                    score += currentPower; localStorage.setItem('c7_score', score); updateUI();
+                    setTimeout(() => {
+                        clickBtn.classList.remove('bot-active'); botCircle.style.transition = "none";
+                        botX = targetX; botY = targetY; dx = Math.random() > 0.5 ? 2 : -2; dy = Math.random() > 0.5 ? 2 : -2;
+                        isBotAttacking = false; timeToAttack = 30000;
+                    }, 150);
+                }, 800);
+            }
+            setTimeout(checkBotTimer, 100);
+        }
+        checkBotTimer();
+    }
+
+    document.body.addEventListener('click', () => { if (isMusicPlaying) bgMusic.play().catch(e => {}); }, { once: true });
+    updateUI(); toggleMusic();
+    if (hasTurret) spawnTurret();
+    if (hasStation) spawnStation();
+    if (hasBot) startBotBehavior();
+    if (hasStation) startStationBehavior();
+</script>
+</body>
+</html>
